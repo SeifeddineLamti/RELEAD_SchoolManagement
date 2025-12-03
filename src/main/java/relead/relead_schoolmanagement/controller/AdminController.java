@@ -56,7 +56,7 @@ public class AdminController {
             @ApiResponse(responseCode = "404", description = "Not Found - Admin not found", content = @Content),
             @ApiResponse(responseCode = "500", description = "Server Error", content = @Content)
     })
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         adminService.delete(id);
         return ResponseEntity.ok().build();
     }

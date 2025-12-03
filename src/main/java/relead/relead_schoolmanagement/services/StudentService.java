@@ -14,6 +14,7 @@ import relead.relead_schoolmanagement.repositories.StudentRepository;
 @AllArgsConstructor
 public class StudentService implements IStudentService {
     private final StudentRepository studentRepository;
+    private static final String STUDENT_NOT_FOUND_MSG = "Student not found with id ";
 
     @Override
     public Page<Student> getAll(int page, int size, Sort sort) {
@@ -29,7 +30,7 @@ public class StudentService implements IStudentService {
     @Override
     public Student getById(Long id) {
         return studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id " + id));
+                .orElseThrow(() -> new RuntimeException(STUDENT_NOT_FOUND_MSG + id));
     }
 
     @Override
@@ -47,7 +48,7 @@ public class StudentService implements IStudentService {
     @Override
     public Student update(Long id, Student updated) {
         Student s = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id " + id));
+                .orElseThrow(() -> new RuntimeException(STUDENT_NOT_FOUND_MSG + id));
 
         if(updated.getUsername() != null && !updated.getUsername().equals(s.getUsername())) {
             studentRepository.findByUsername(updated.getUsername()).ifPresent(u -> {
@@ -65,7 +66,7 @@ public class StudentService implements IStudentService {
     @Override
     public void delete(Long id) {
         Student s = studentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Student not found with id " + id));
+                .orElseThrow(() -> new RuntimeException(STUDENT_NOT_FOUND_MSG + id));
 
         studentRepository.delete(s);
     }

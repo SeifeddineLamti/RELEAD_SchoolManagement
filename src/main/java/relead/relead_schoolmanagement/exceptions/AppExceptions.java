@@ -1,7 +1,10 @@
 package relead.relead_schoolmanagement.exceptions;
 
-public class AppExceptions {
 
+public class AppExceptions {
+    private AppExceptions() {
+        throw new IllegalStateException("Utility class");
+    }
     public static class ResourceNotFoundException extends RuntimeException {
         public ResourceNotFoundException(String message) {
             super(message); //404
