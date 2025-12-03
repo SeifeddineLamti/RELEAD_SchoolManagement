@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # --- 1. Base de Données ---
+  postgres-db:
+    image: postgres:15
+    container_name: school_db_container
+    environment:
+      - POSTGRES_DB=school_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=seif
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - school-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- 2. Backend Spring Boot ---
+  backend-app:
+    build: .  # Utilise le Dockerfile à la racine
+    container_name: school_backend
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres-db:
+        condition: service_healthy # Attend que la BDD soit prête
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/school_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=seif
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - school-network
+
+volumes:
+  pg_data: # On ne garde que le volume de la BDD
+
+networks:
+  school-network:
+    driver: bridge

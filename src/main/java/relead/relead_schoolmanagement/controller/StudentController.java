@@ -7,14 +7,20 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import relead.relead_schoolmanagement.entities.Level;
 import relead.relead_schoolmanagement.entities.Student;
 import relead.relead_schoolmanagement.services.IStudentService;
+import relead.relead_schoolmanagement.util.Csv;
 
 @RestController
 @RequestMapping("/api/students")
@@ -128,4 +134,39 @@ public class StudentController {
     ) {
         return ResponseEntity.ok(studentService.filterByLevel(level, page, size));
     }
+
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Import students from CSV", description = "Upload a CSV file to add students in bulk.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "File uploaded and data saved"),
+            @ApiResponse(responseCode = "400", description = "Invalid file format (must be CSV)", content = @Content),
+            @ApiResponse(responseCode = "500", description = "Server Error", content = @Content)
+    })
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+        if (Csv.hasCSVFormat(file)) {
+            try {
+                studentService.saveFromCsv(file);
+                return ResponseEntity.status(HttpStatus.OK).body("Uploaded the file successfully: " + file.getOriginalFilename());
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body("Could not upload the file: " + file.getOriginalFilename() + "!");
+            }
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Please upload a csv file!");
+    }
+
+    // --- EXPORT CSV ---
+    @GetMapping("/export")
+    @Operation(summary = "Export students to CSV", description = "Download a CSV file containing all students.")
+    public ResponseEntity<Resource> getFile() {
+        String filename = "students.csv";
+        InputStreamResource file = new InputStreamResource(studentService.loadCsv());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(MediaType.parseMediaType("application/csv"))
+                .body(file);
+    }
+
+
+
 }

@@ -22,4 +22,9 @@ public class AppExceptions {
             super(message); //400
         }
     }
+    public static class CsvImportException extends RuntimeException {
+        public CsvImportException(String message) {
+            super(message); // Sera souvent 400 ou 500 selon le cas
+        }
+    }
 }

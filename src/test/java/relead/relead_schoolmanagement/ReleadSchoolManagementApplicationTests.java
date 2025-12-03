@@ -38,7 +38,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ReleadSchoolManagementApplicationTests {
 
-
     @Mock
     private StudentRepository studentRepository;
     @Mock
@@ -49,7 +48,6 @@ class ReleadSchoolManagementApplicationTests {
     private JwtService jwtService;
     @Mock
     private AuthenticationManager authenticationManager;
-
 
     @InjectMocks
     private StudentService studentService;
@@ -67,6 +65,7 @@ class ReleadSchoolManagementApplicationTests {
         student = new Student(1L, "ahmed", Level.FRESHMAN);
     }
 
+    // --- ADMIN SERVICE TESTS ---
 
     @Test
     void shouldCreateAdmin_WhenValid() {
@@ -107,19 +106,17 @@ class ReleadSchoolManagementApplicationTests {
     @Test
     void shouldDeleteAdmin_WhenExists() {
         when(adminRepository.findById(1L)).thenReturn(Optional.of(new Admin()));
-
         adminService.delete(1L);
-
         verify(adminRepository).delete(any(Admin.class));
     }
 
     @Test
     void shouldThrowNotFound_WhenDeleteUnknownId() {
         when(adminRepository.findById(99L)).thenReturn(Optional.empty());
-
         assertThrows(AppExceptions.ResourceNotFoundException.class, () -> adminService.delete(99L));
     }
 
+    // --- AUTHENTICATION SERVICE TESTS ---
 
     @Test
     void shouldRegister_Success() {
@@ -150,6 +147,17 @@ class ReleadSchoolManagementApplicationTests {
         assertEquals("mocked-jwt-token", response.getToken());
     }
 
+    @Test
+    void shouldThrowException_WhenAuthenticateUserNotFound() {
+        AuthenticationRequest request = new AuthenticationRequest("unknown", "pass");
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(null);
+        when(adminRepository.findByUsername("unknown")).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.authenticate(request));
+        assertEquals("Admin not found", ex.getMessage());
+    }
+
+    // --- STUDENT SERVICE TESTS ---
 
     @Test
     void shouldCreateStudent_Success() {
@@ -165,9 +173,19 @@ class ReleadSchoolManagementApplicationTests {
     @Test
     void shouldThrowException_WhenCreatingDuplicateUsername() {
         when(studentRepository.findByUsername("ahmed")).thenReturn(Optional.of(student));
-
         RuntimeException ex = assertThrows(RuntimeException.class, () -> studentService.create(student));
         assertTrue(ex.getMessage().contains("username already exists"));
+    }
+
+    @Test
+    void shouldThrowException_WhenCreateStudentWithInvalidUsername() {
+        Student nullUser = new Student(null, null, Level.FRESHMAN);
+        assertThrows(IllegalArgumentException.class, () -> studentService.create(nullUser));
+
+        Student blankUser = new Student(null, "", Level.FRESHMAN);
+        assertThrows(IllegalArgumentException.class, () -> studentService.create(blankUser));
+
+        verify(studentRepository, never()).save(any());
     }
 
     @Test
@@ -183,10 +201,15 @@ class ReleadSchoolManagementApplicationTests {
     @Test
     void shouldGetStudentById_Success() {
         when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
-
         Student result = studentService.getById(1L);
-
         assertEquals(1L, result.getId());
+    }
+
+    @Test
+    void shouldThrowException_WhenGetStudentByIdNotFound() {
+        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> studentService.getById(99L));
+        assertTrue(ex.getMessage().contains("Student not found"));
     }
 
     @Test
@@ -204,12 +227,37 @@ class ReleadSchoolManagementApplicationTests {
     }
 
     @Test
+    void shouldThrowException_WhenUpdateStudentNotFound() {
+        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+        Student updateRequest = new Student();
+        assertThrows(RuntimeException.class, () -> studentService.update(99L, updateRequest));
+    }
+
+    @Test
+    void shouldThrowException_WhenUpdateStudentUsernameDuplicate() {
+        Student existingStudent = new Student(1L, "oldName", Level.FRESHMAN);
+        Student updateRequest = new Student(null, "takenName", Level.SENIOR);
+
+        when(studentRepository.findById(1L)).thenReturn(Optional.of(existingStudent));
+        when(studentRepository.findByUsername("takenName")).thenReturn(Optional.of(new Student(2L, "takenName", Level.SENIOR)));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> studentService.update(1L, updateRequest));
+        assertTrue(ex.getMessage().contains("username already exists"));
+        verify(studentRepository, never()).save(any());
+    }
+
+    @Test
     void shouldDeleteStudent_Success() {
         when(studentRepository.findById(1L)).thenReturn(Optional.of(student));
-
         studentService.delete(1L);
-
         verify(studentRepository).delete(student);
+    }
+
+    @Test
+    void shouldThrowException_WhenDeleteStudentNotFound() {
+        when(studentRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class, () -> studentService.delete(99L));
+        verify(studentRepository, never()).delete(any());
     }
 
     @Test
@@ -220,5 +268,16 @@ class ReleadSchoolManagementApplicationTests {
         Page<Student> result = studentService.searchByUsername("ahmed", 0, 10);
 
         assertEquals(1, result.getTotalElements());
+    }
+
+    @Test
+    void shouldFilterByLevel() {
+        Page<Student> page = new PageImpl<>(Collections.singletonList(student));
+        when(studentRepository.findByLevel(eq(Level.FRESHMAN), any(Pageable.class))).thenReturn(page);
+
+        Page<Student> result = studentService.filterByLevel(Level.FRESHMAN, 0, 10);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals(Level.FRESHMAN, result.getContent().get(0).getLevel());
     }
 }

@@ -59,4 +59,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception ex) {
         return buildResponse("Internal server error: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(AppExceptions.CsvImportException.class)
+    public ResponseEntity<Map<String, Object>> handleCsvImportException(AppExceptions.CsvImportException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
 }

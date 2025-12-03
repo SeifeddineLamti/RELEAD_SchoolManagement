@@ -6,9 +6,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import relead.relead_schoolmanagement.entities.Level;
 import relead.relead_schoolmanagement.entities.Student;
+import relead.relead_schoolmanagement.exceptions.AppExceptions;
 import relead.relead_schoolmanagement.repositories.StudentRepository;
+import relead.relead_schoolmanagement.util.Csv;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -83,4 +90,23 @@ public class StudentService implements IStudentService {
         return studentRepository.findByLevel(level, p);
     }
 
+    @Override
+    public void saveFromCsv(MultipartFile file) {
+        try {
+            List<Student> students = Csv.csvToStudents(file.getInputStream());
+            for (Student s : students) {
+                if (studentRepository.findByUsername(s.getUsername()).isEmpty()) {
+                    studentRepository.save(s);
+                }
+            }
+        } catch (IOException e) {
+            throw new AppExceptions.CsvImportException("Fail to store CSV data: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public ByteArrayInputStream loadCsv() {
+        List<Student> students = studentRepository.findAll();
+        return Csv.studentsToCSV(students);
+    }
 }
